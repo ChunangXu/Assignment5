@@ -1,5 +1,6 @@
 "use strict";
 
+// Configure consistent English date/time pickers across browsers.
 function initDateTimePickers() {
 	if (typeof window.flatpickr !== "function") {
 		return;
@@ -28,6 +29,7 @@ const STORAGE_KEYS = {
 	authUser: "mvc_auth_user",
 };
 
+// Model: handles event data, validation, and persistence.
 class EventModel {
 	constructor(storage) {
 		this.storage = storage;
@@ -113,6 +115,7 @@ class EventModel {
 			errors.push("Location must be at least 2 characters.");
 		}
 
+		// Validate date/time format after required checks pass.
 		if (payload.date && payload.time) {
 			const eventDateTime = new Date(`${payload.date}T${payload.time}`);
 			if (Number.isNaN(eventDateTime.getTime())) {
@@ -136,6 +139,7 @@ class EventModel {
 			const parsed = JSON.parse(raw);
 			return Array.isArray(parsed) ? parsed : [];
 		} catch {
+			// Fallback for corrupted storage payloads.
 			return [];
 		}
 	}
@@ -145,6 +149,7 @@ class EventModel {
 	}
 }
 
+// Model: demo-only authentication state in localStorage.
 class AuthModel {
 	constructor(storage) {
 		this.storage = storage;
@@ -191,6 +196,7 @@ class AuthModel {
 	}
 }
 
+// View: owns DOM reads/writes and rendering.
 class EventView {
 	constructor(doc) {
 		this.doc = doc;
@@ -228,6 +234,7 @@ class EventView {
 	}
 
 	showStatus(message, type = "") {
+		// Route status messages to the currently visible section.
 		const authVisible = !this.authSection.classList.contains("hidden");
 		const target = authVisible ? this.authStatusMessage : this.statusMessage;
 		const other = authVisible ? this.statusMessage : this.authStatusMessage;
@@ -245,6 +252,7 @@ class EventView {
 		}
 
 		target.replaceChildren();
+		// Render multiple validation errors as a list.
 		if (lines.length > 1) {
 			const list = this.doc.createElement("ul");
 			list.className = "status-list";
@@ -349,6 +357,7 @@ class EventView {
 	}
 }
 
+// Controller: coordinates user actions between models and view.
 class EventController {
 	constructor(eventModel, authModel, view) {
 		this.eventModel = eventModel;
@@ -362,6 +371,7 @@ class EventController {
 	}
 
 	#bindEvents() {
+		// Login flow.
 		this.view.loginForm.addEventListener("submit", (event) => {
 			event.preventDefault();
 			const payload = this.view.getLoginInput();
@@ -384,6 +394,7 @@ class EventController {
 			this.view.showStatus("Logged out.", "success");
 		});
 
+		// Create/update flow.
 		this.view.eventForm.addEventListener("submit", (event) => {
 			event.preventDefault();
 			if (!this.authModel.isAuthenticated()) {
@@ -413,6 +424,7 @@ class EventController {
 			this.view.clearStatus();
 		});
 
+		// Event delegation for edit/delete actions in the list.
 		this.view.eventList.addEventListener("click", (event) => {
 			const target = event.target;
 			if (!(target instanceof HTMLElement)) {
