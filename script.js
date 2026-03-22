@@ -158,15 +158,24 @@ class AuthModel {
 		const cleanUsername = (username || "").trim();
 		const cleanPassword = (password || "").trim();
 
-		if (
-			cleanUsername === this.demoUser.username &&
-			cleanPassword === this.demoUser.password
-		) {
-			this.storage.setItem(STORAGE_KEYS.authUser, cleanUsername);
-			return { success: true };
+		if (!cleanUsername) {
+			return { success: false, message: "Username is required." };
 		}
 
-		return { success: false, message: "Invalid username or password." };
+		if (!cleanPassword) {
+			return { success: false, message: "Password is required." };
+		}
+
+		if (cleanUsername !== this.demoUser.username) {
+			return { success: false, message: "Username does not exist." };
+		}
+
+		if (cleanPassword !== this.demoUser.password) {
+			return { success: false, message: "Password is incorrect." };
+		}
+
+		this.storage.setItem(STORAGE_KEYS.authUser, cleanUsername);
+		return { success: true };
 	}
 
 	logout() {
@@ -192,6 +201,7 @@ class EventView {
 		this.logoutBtn = doc.querySelector("#logout-btn");
 		this.eventForm = doc.querySelector("#event-form");
 		this.eventList = doc.querySelector("#event-list");
+		this.authStatusMessage = doc.querySelector("#auth-status-message");
 		this.statusMessage = doc.querySelector("#status-message");
 		this.eventCount = doc.querySelector("#event-count");
 		this.submitBtn = doc.querySelector("#submit-btn");
@@ -218,15 +228,50 @@ class EventView {
 	}
 
 	showStatus(message, type = "") {
-		this.statusMessage.textContent = message;
-		this.statusMessage.className = "status";
+		const authVisible = !this.authSection.classList.contains("hidden");
+		const target = authVisible ? this.authStatusMessage : this.statusMessage;
+		const other = authVisible ? this.statusMessage : this.authStatusMessage;
+		const lines = Array.isArray(message)
+			? message.filter((line) => Boolean(line)).map((line) => String(line))
+			: [String(message ?? "")];
+
+		if (other) {
+			other.textContent = "";
+			other.className = "status";
+		}
+
+		if (!target) {
+			return;
+		}
+
+		target.replaceChildren();
+		if (lines.length > 1) {
+			const list = this.doc.createElement("ul");
+			list.className = "status-list";
+			for (const line of lines) {
+				const item = this.doc.createElement("li");
+				item.textContent = line;
+				list.appendChild(item);
+			}
+			target.appendChild(list);
+		} else {
+			target.textContent = lines[0] || "";
+		}
+		target.className = "status";
 		if (type) {
-			this.statusMessage.classList.add(type);
+			target.classList.add(type);
 		}
 	}
 
 	clearStatus() {
-		this.showStatus("");
+		if (this.statusMessage) {
+			this.statusMessage.textContent = "";
+			this.statusMessage.className = "status";
+		}
+		if (this.authStatusMessage) {
+			this.authStatusMessage.textContent = "";
+			this.authStatusMessage.className = "status";
+		}
 	}
 
 	getLoginInput() {
@@ -328,15 +373,15 @@ class EventController {
 			}
 
 			this.view.resetLogin();
-			this.view.showStatus("Login successful.", "success");
 			this.#renderByAuth();
+			this.view.showStatus("Login successful.", "success");
 		});
 
 		this.view.logoutBtn.addEventListener("click", () => {
 			this.authModel.logout();
 			this.view.resetEventForm();
-			this.view.showStatus("Logged out.", "success");
 			this.#renderByAuth();
+			this.view.showStatus("Logged out.", "success");
 		});
 
 		this.view.eventForm.addEventListener("submit", (event) => {
@@ -354,7 +399,7 @@ class EventController {
 				: this.eventModel.addEvent(payload);
 
 			if (!result.valid) {
-				this.view.showStatus(result.errors.join(" "), "error");
+				this.view.showStatus(result.errors, "error");
 				return;
 			}
 
